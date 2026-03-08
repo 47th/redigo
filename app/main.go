@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -28,6 +29,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn.Write([]byte("+PONG\r\n"))
+	var buffer []byte = make([]byte, 128)
+	var msg string = ""
+	for {
+		n, err := conn.Read(buffer)
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				fmt.Println("Error Reading data from client", err)
+				os.Exit(1)
+			}
+		}
+
+		for i := range n {
+			msg += string(buffer[i])
+		}
+
+		// fmt.Println(msg)
+
+		// if msg == "PING" {
+		conn.Write([]byte("+PONG\r\n"))
+		// }
+
+		if len(msg) == 4 {
+			msg = ""
+		}
+
+	}
+
+	// fmt.Println("Client disconnected from the server")
+
+	// conn.Write([]byte("+PONG\r\n"))
 
 }

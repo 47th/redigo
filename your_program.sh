@@ -1,24 +1,24 @@
 #!/bin/sh
-#
-# Use this script to run your program LOCALLY.
-#
-# Note: Changing this script WILL NOT affect how CodeCrafters runs your program.
-#
-# Learn more: https://codecrafters.io/program-interface
+set -e 
 
-set -e # Exit early if any commands fail
 
-# Copied from .codecrafters/compile.sh
-#
-# - Edit this to change how your program compiles locally
-# - Edit .codecrafters/compile.sh to change how your program compiles remotely
-(
-  cd "$(dirname "$0")" # Ensure compile steps are run within the repository directory
-  go build -o /tmp/codecrafters-build-redis-go app/*.go
-)
+cd "$(dirname "$0")" # Ensure compile steps are run within the repository directory
 
-# Copied from .codecrafters/run.sh
-#
-# - Edit this to change how your program runs locally
-# - Edit .codecrafters/run.sh to change how your program runs remotely
-exec /tmp/codecrafters-build-redis-go "$@"
+if [ "$#" -eq 1 ]
+then 
+  if [ "$1" = "server" ] 
+  then 
+      go run app/main.go
+  else
+      go run client/client.go
+  fi
+  
+else
+  #normal compilation and run
+
+  #compilation
+    go build -o /tmp/codecrafters-build-redis-go app/*.go
+
+  #run
+  exec /tmp/codecrafters-build-redis-go "$@"
+fi
