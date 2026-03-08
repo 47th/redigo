@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -16,6 +17,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	consumeListener(listener)
+
+}
+
+func consumeListener(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -23,17 +29,20 @@ func main() {
 			os.Exit(1)
 		}
 
-		handleConnection(conn)
+		go handleConnection(conn)
 
 	}
-
 }
 
 func handleConnection(connection net.Conn) {
 	for {
-		buf := make([]byte, 10)
+		buf := make([]byte, 1024)
 
 		_, err := connection.Read(buf)
+
+		if err == io.EOF {
+			break
+		}
 
 		if err != nil {
 			fmt.Println("There was an error reading client message", err)
