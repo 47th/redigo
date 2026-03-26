@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net"
 	"os"
+
+	"github.com/codecrafters-io/redis-starter-go/app/redigo"
 )
 
 func main() {
@@ -30,25 +33,30 @@ func consumeListener(listener net.Listener) {
 		}
 
 		go handleConnection(conn)
-
 	}
 }
 
 func handleConnection(connection net.Conn) {
+	reader := bufio.NewReader(connection)
 	for {
-		buf := make([]byte, 1024)
-
-		_, err := connection.Read(buf)
-
-		if err == io.EOF {
-			break
-		}
-
+		typeinfo, err := reader.ReadByte()
 		if err != nil {
-			fmt.Println("There was an error reading client message", err)
+			if err == io.EOF {
+				break
+			}
+
+			fmt.Println("An error occured while reading the first byte", err)
 			os.Exit(1)
 		}
 
-		connection.Write([]byte("+PONG\r\n"))
+		if typeinfo != redigo.Array {
+			fmt.Println("The data is not of Redis Array Type, the Type of the data: ", typeinfo, " it should be ", redigo.Array)
+			os.Exit(1)
+		}
+
+		var InputArray redigo.Resp = redigo.HandleArray(reader)
+		redigo.InputHandler(connection, InputArray)
 	}
+
+	fmt.Println("User disconnected")
 }

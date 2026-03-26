@@ -20,7 +20,7 @@ func main() {
 	var msg string = ""
 	for range 3 {
 
-		conn.Write([]byte("PING"))
+		conn.Write([]byte("*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n"))
 		n, err := conn.Read(buffer)
 
 		if err != nil {
@@ -28,7 +28,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println(n, string(buffer))
+		// fmt.Println(n, string(buffer))
 
 		for i := range n {
 			msg += string(buffer[i])
