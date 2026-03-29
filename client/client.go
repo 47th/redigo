@@ -18,7 +18,7 @@ func main() {
 
 	var buffer []byte = make([]byte, 10)
 	var msg string = ""
-	for range 3 {
+	for range 2 {
 
 		conn.Write([]byte("*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n"))
 		n, err := conn.Read(buffer)

@@ -1,5 +1,7 @@
 package redigo
 
+// TODO: better error handling and better flow of errors
+
 import (
 	"bufio"
 	"fmt"
@@ -19,16 +21,20 @@ const (
 	Array        = '*'
 	Bool         = '#'
 	Double       = ','
+	crlf         = "\r\n"
 )
 
-type Resp struct {
-	Typeinfo Type
-	Integer  int
-	String   string
-	Array    []Resp
-	Double   float64
-	Size     int
+type Envelope struct {
+	OpCode  Type
+	Integer int
+	String  string
+	Array   []Envelope
+	Double  float64
+	Size    int
+	Set     bool
 }
+
+// utils and tools
 
 func bytesToInt(bytes []byte) (int, error) {
 
@@ -41,7 +47,9 @@ func bytesToInt(bytes []byte) (int, error) {
 	return strconv.Atoi(string(bytes[:n-2]))
 }
 
-func HandleArray(reader *bufio.Reader) Resp {
+//parsing functions
+
+func ParseArray(reader *bufio.Reader) Envelope {
 
 	sizeArr, err := reader.ReadBytes('\n')
 	if err != nil {
@@ -55,10 +63,11 @@ func HandleArray(reader *bufio.Reader) Resp {
 		os.Exit(1)
 	}
 
-	var Arr = Resp{
-		Typeinfo: Array,
-		Array:    make([]Resp, size),
-		Size:     size,
+	var env = Envelope{
+		OpCode: Array,
+		Array:  make([]Envelope, size),
+		Size:   size,
+		Set:    true,
 	}
 
 	for i := 0; i < size; i++ {
@@ -72,26 +81,28 @@ func HandleArray(reader *bufio.Reader) Resp {
 
 		switch typeinfo {
 		case SimpleString:
-			Arr.Array[i] = HandleSimpleString(reader)
+			env.Array[i] = ParseSimpleString(reader)
 		case BulkString:
-			Arr.Array[i] = HandleBulkString(reader)
+			env.Array[i] = ParseBulkString(reader)
 		case Integer:
-			Arr.Array[i] = HandleInteger(reader)
+			env.Array[i] = ParseInteger(reader)
 		// case SimpleError:
-		// 	Arr.Array[i] = HandleError(reader)
+		// 	env.Array[i] = HandleError(reader)
 		case Array:
-			Arr.Array[i] = HandleArray(reader)
+			env.Array[i] = ParseArray(reader)
 		case Bool:
 		default:
-			fmt.Println("This is a wrong Resp datatype: ", typeinfo)
+			fmt.Println("This is a wrong Envelope datatype: ", typeinfo)
 		}
 	}
 
-	return Arr
+	fmt.Println(env)
+
+	return env
 
 }
 
-func HandleSimpleString(reader *bufio.Reader) Resp {
+func ParseSimpleString(reader *bufio.Reader) Envelope {
 	bytes, err := reader.ReadBytes('\n')
 	if err != nil {
 		fmt.Println("There was a problem in reading the bytes of simplestring", err)
@@ -103,16 +114,17 @@ func HandleSimpleString(reader *bufio.Reader) Resp {
 
 	simplestring := string(bytes)
 
-	resp := Resp{
-		Typeinfo: SimpleString,
-		String:   simplestring,
-		Size:     size,
+	env := Envelope{
+		OpCode: SimpleString,
+		String: simplestring,
+		Size:   size,
+		Set:    true,
 	}
 
-	return resp
+	return env
 }
 
-func HandleBulkString(reader *bufio.Reader) Resp {
+func ParseBulkString(reader *bufio.Reader) Envelope {
 	bytes, err := reader.ReadBytes('\n')
 
 	if err != nil {
@@ -125,16 +137,17 @@ func HandleBulkString(reader *bufio.Reader) Resp {
 	bulkstring := string(bulkStringBytes)
 	reader.Discard(size + 2)
 
-	resp := Resp{
-		Typeinfo: BulkString,
-		String:   bulkstring,
-		Size:     size,
+	env := Envelope{
+		OpCode: BulkString,
+		String: bulkstring,
+		Size:   size,
+		Set:    true,
 	}
 
-	return resp
+	return env
 }
 
-func HandleInteger(reader *bufio.Reader) Resp {
+func ParseInteger(reader *bufio.Reader) Envelope {
 	bytes, err := reader.ReadBytes('\n')
 	if err != nil {
 		fmt.Println("There was an error reading the bytes of an interger type", err)
@@ -147,10 +160,66 @@ func HandleInteger(reader *bufio.Reader) Resp {
 		os.Exit(1)
 	}
 
-	resp := Resp{
-		Typeinfo: Integer,
-		Integer:  integer,
+	env := Envelope{
+		OpCode:  Integer,
+		Integer: integer,
+		Set:     true,
 	}
 
-	return resp
+	return env
+}
+
+//formatter functions
+
+func FormatMapper(env Envelope) string {
+	if !env.Set {
+		fmt.Println("envelope expected to be initialized but not initialized")
+		os.Exit(1)
+	}
+
+	var str string
+	switch env.OpCode {
+	case Array:
+		str = FormatArray(env)
+	case SimpleString:
+		str = FormatSimpleString(env)
+	case BulkString:
+		str = FormatBulkString(env)
+	case Integer:
+		str = FormatInteger(env)
+	default:
+		fmt.Println("Functions for this type havent yet been implemented", env.OpCode)
+		os.Exit(1)
+	}
+
+	return str
+
+}
+
+func FormatArray(env Envelope) string {
+	str := string(Array)
+	str += strconv.Itoa(env.Size) + crlf
+	for _, v := range env.Array {
+		str += FormatMapper(v)
+	}
+	return str
+}
+
+func FormatSimpleString(env Envelope) string {
+	str := string(SimpleString)
+	str += env.String + crlf
+	return str
+}
+
+func FormatBulkString(env Envelope) string {
+	str := string(BulkString)
+	str += strconv.Itoa(env.Size) + crlf
+	str += env.String + crlf
+	return str
+}
+
+func FormatInteger(env Envelope) string {
+	str := string(Integer)
+	str += strconv.Itoa(env.Integer) + crlf
+	return str
 }

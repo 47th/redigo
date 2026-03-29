@@ -54,8 +54,7 @@ func handleConnection(connection net.Conn) {
 			os.Exit(1)
 		}
 
-		var InputArray redigo.Resp = redigo.HandleArray(reader)
-		redigo.InputHandler(connection, InputArray)
+		err = redigo.HandleRequest(connection, reader)
 	}
 
 	fmt.Println("User disconnected")
