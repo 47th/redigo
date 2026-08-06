@@ -32,11 +32,11 @@ func commandRouter(command Envelope) Envelope {
 	case "GET":
 		return get(command)
 	default:
-		var args strings.Builder
+		var args string
 		for i := range command.Size {
-			args.WriteString("'" + command.Array[i].String + "' ")
+			args = args + "'" + command.Array[i].String + "' "
 		}
-		errStr := "ERR unknown command '" + op.String + "', with args beginning with: " + args.String()
+		errStr := "ERR unknown command '" + op.String + "', with args beginning with: " + args
 		return handleErr(errStr, SimpleError)
 	}
 
@@ -46,7 +46,6 @@ func ping() Envelope {
 	env := Envelope{
 		OpCode: SimpleString,
 		String: "PONG",
-		Set:    true,
 	}
 
 	return env
@@ -61,7 +60,6 @@ func echo(req Envelope) Envelope {
 		OpCode: BulkString,
 		Size:   req.Array[1].Size,
 		String: req.Array[1].String,
-		Set:    true,
 	}
 
 	return env
@@ -72,7 +70,6 @@ func handleErr(str string, errType Type) Envelope {
 		OpCode: errType,
 		String: str,
 		Size:   len(str),
-		Set:    true,
 	}
 
 	return env
@@ -91,7 +88,6 @@ func set(env Envelope) Envelope {
 			OpCode: SimpleString,
 			String: "OK",
 			Size:   2,
-			Set:    true,
 		}
 	case 5:
 		switch option := env.Array[3].String; option {
@@ -122,7 +118,6 @@ func set(env Envelope) Envelope {
 				OpCode: SimpleString,
 				String: "OK",
 				Size:   2,
-				Set:    true,
 			}
 		}
 	default:
@@ -135,9 +130,7 @@ func set(env Envelope) Envelope {
 func get(env Envelope) Envelope {
 	NIL := Envelope{
 		OpCode: BulkString,
-		Set:    true,
 		Size:   -1,
-		String: "",
 	}
 
 	if env.Size != 2 {
@@ -154,7 +147,6 @@ func get(env Envelope) Envelope {
 
 		return Envelope{
 			OpCode: BulkString,
-			Set:    true,
 			Size:   len(value.Env.String),
 			String: value.Env.String,
 		}

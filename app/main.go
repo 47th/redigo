@@ -55,6 +55,7 @@ func handleConnection(connection net.Conn) {
 		}
 
 		err = redigo.HandleRequest(connection, reader)
+
 		if err != nil {
 			fmt.Println("There was an error in handling your request", err)
 		}

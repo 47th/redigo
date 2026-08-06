@@ -11,6 +11,7 @@ type Type byte
 
 // const untyped elements
 const (
+	Nulls        = '_'
 	SimpleString = '+'
 	BulkString   = '$'
 	Integer      = ':'
@@ -29,7 +30,6 @@ type Envelope struct {
 	Array   []Envelope
 	Double  float64
 	Size    int
-	Set     bool
 }
 
 // utils and tools
@@ -60,7 +60,6 @@ func parseArray(reader *bufio.Reader) Envelope {
 		OpCode: Array,
 		Array:  make([]Envelope, size),
 		Size:   size,
-		Set:    true,
 	}
 
 	for i := range size {
@@ -78,7 +77,9 @@ func parseArray(reader *bufio.Reader) Envelope {
 			env.Array[i] = parseInteger(reader)
 		case Array:
 			env.Array[i] = parseArray(reader)
+		case Nulls:
 		case Bool:
+
 		default:
 			return handleErr("ERR function to parse this data type have not yet been implemented", SimpleError)
 		}
@@ -101,7 +102,6 @@ func parseSimpleString(reader *bufio.Reader) Envelope {
 		OpCode: SimpleString,
 		String: simplestring,
 		Size:   size,
-		Set:    true,
 	}
 
 	return env
@@ -123,7 +123,6 @@ func parseBulkString(reader *bufio.Reader) Envelope {
 		OpCode: BulkString,
 		String: bulkstring,
 		Size:   size,
-		Set:    true,
 	}
 
 	return env
@@ -143,7 +142,6 @@ func parseInteger(reader *bufio.Reader) Envelope {
 	env := Envelope{
 		OpCode:  Integer,
 		Integer: integer,
-		Set:     true,
 	}
 
 	return env
@@ -165,7 +163,6 @@ func parseInteger(reader *bufio.Reader) Envelope {
 // 		OpCode: SimpleError,
 // 		String: simpleError,
 // 		Size:   size,
-// 		Set:    true,
 // 	}
 //
 // 	return env
@@ -188,7 +185,6 @@ func parseInteger(reader *bufio.Reader) Envelope {
 // 		OpCode: BulkString,
 // 		String: bulkError,
 // 		Size:   size,
-// 		Set:    true,
 // 	}
 //
 // 	return env
@@ -197,9 +193,6 @@ func parseInteger(reader *bufio.Reader) Envelope {
 //formatter functions
 
 func FormatMapper(env Envelope) string {
-	if !env.Set {
-		return formatSimple(handleErr("ERR envelope not Set", SimpleError))
-	}
 
 	var str string
 	switch env.OpCode {
@@ -211,6 +204,8 @@ func FormatMapper(env Envelope) string {
 		str = formatBulk(env)
 	case Integer:
 		str = formatInteger(env)
+	case Nulls:
+		str = formatNulls()
 	default:
 		return formatSimple(handleErr("ERR function for these datatypes havent yet been implemented", SimpleError))
 	}
@@ -236,6 +231,11 @@ func formatSimple(env Envelope) string {
 
 func formatBulk(env Envelope) string {
 	str := string(env.OpCode)
+	if env.Size == -1 {
+		str += strconv.Itoa(env.Size) + crlf
+		return str
+	}
+
 	str += strconv.Itoa(env.Size) + crlf
 	str += env.String + crlf
 	return str
@@ -244,5 +244,11 @@ func formatBulk(env Envelope) string {
 func formatInteger(env Envelope) string {
 	str := string(Integer)
 	str += strconv.Itoa(env.Integer) + crlf
+	return str
+}
+
+func formatNulls() string {
+	str := string(Nulls)
+	str += crlf
 	return str
 }

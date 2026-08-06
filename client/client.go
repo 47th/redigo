@@ -28,8 +28,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		// fmt.Println(n, string(buffer))
-
 		for i := range n {
 			msg += string(buffer[i])
 		}
