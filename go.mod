@@ -1,3 +1,3 @@
-module github.com/codecrafters-io/redis-starter-go
+module redigo
 
 go 1.25.0

@@ -1,30 +1,34 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"os"
 
-	"github.com/codecrafters-io/redis-starter-go/app/redigo"
+	"redigo/command"
+	"redigo/internal/server"
+	"redigo/store"
 )
 
 func main() {
 
-	fmt.Println("Logs from your program will appear here!")
+	fmt.Println("Listening on port 6379!")
 
+	//listener listens for clients
 	listener, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
-
 	consumeListener(listener)
 
 }
 
 func consumeListener(listener net.Listener) {
+	//initialize store and the handler
+	store := store.NewStore()
+	handler := command.NewHandler(store)
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -32,34 +36,11 @@ func consumeListener(listener net.Listener) {
 			os.Exit(1)
 		}
 
-		go handleConnection(conn)
+		fmt.Println("User connected")
+		go server.HandleIO(conn, handler)
 	}
 }
 
-func handleConnection(connection net.Conn) {
-	reader := bufio.NewReader(connection)
-	for {
-		typeinfo, err := reader.ReadByte()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
-			fmt.Println("An error occured while reading the first byte", err)
-			os.Exit(1)
-		}
-
-		if typeinfo != redigo.Array {
-			fmt.Println("The data is not of Redis Array Type, the Type of the data: ", typeinfo, " it should be ", redigo.Array)
-			os.Exit(1)
-		}
-
-		err = redigo.HandleRequest(connection, reader)
-
-		if err != nil {
-			fmt.Println("There was an error in handling your request", err)
-		}
-	}
-
-	fmt.Println("User disconnected")
-}
+// there are 2 kinds of errors that are propogating back to HandleIO
+// one of them is coming from the envelope, the other one comes from the system
+// when there is an error of the system, i need to recognise it other wise
