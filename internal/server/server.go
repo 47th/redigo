@@ -22,7 +22,7 @@ func HandleIO(conn net.Conn, handler *command.Handler) {
 				return
 			}
 
-			fmt.Printf("There was an error in handling your request: %s \n", err)
+			fmt.Printf("(server.HandleIO) Error in handling request: %s \n", err)
 			return
 		}
 		_, err = conn.Write([]byte(res))

@@ -22,3 +22,8 @@ resp
 server
 client
 general
+
+
+### Managing codecrafters and github branches
+
+## Steps

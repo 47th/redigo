@@ -64,6 +64,8 @@ func commandRouter(command resp.Envelope, h *Handler) string {
 		return set(command, h)
 	case "GET":
 		return get(command, h)
+	case "INCR":
+		return incr(command, h)
 	default:
 		var args string
 		for i := range command.Size {
@@ -122,7 +124,7 @@ func set(env resp.Envelope, h *Handler) string {
 	case 3:
 		expiry = time.Time{}
 	case 5:
-		switch option := env.Array[3].String; option {
+		switch option := strings.ToUpper(env.Array[3].String); option {
 		case "EX", "PX":
 			interval, err := strconv.Atoi(env.Array[4].String)
 			if err != nil {
@@ -139,7 +141,7 @@ func set(env resp.Envelope, h *Handler) string {
 		return HandleErr("ERR wrong number of arguments for 'set' command", resp.SimpleError)
 	}
 
-	h.store.Set(key, value, expiry)
+	h.store.SET(key, value, expiry)
 	resEnv := resp.Envelope{
 		OpCode: resp.SimpleString,
 		String: "OK",
@@ -160,7 +162,7 @@ func get(env resp.Envelope, h *Handler) string {
 		return HandleErr("ERR wrong number of arguments for 'get' command", resp.SimpleError)
 	}
 	key := env.Array[1].String
-	value, ok := h.store.Get(key)
+	value, ok := h.store.GET(key)
 
 	if ok {
 		resEnv := resp.Envelope{
@@ -172,4 +174,26 @@ func get(env resp.Envelope, h *Handler) string {
 	}
 
 	return resp.FormatMapper(NIL)
+}
+
+func incr(env resp.Envelope, h *Handler) string {
+	if env.Size != 2 {
+		return HandleErr("ERR wrong number of arguments for 'incr' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	value, ok := h.store.INCR(key)
+	if ok {
+		str := "(integer) " + value
+		resEnv := resp.Envelope{
+			OpCode: resp.SimpleString,
+			Size:   len(str),
+			String: str,
+		}
+
+		return resp.FormatMapper(resEnv)
+	}
+
+	return HandleErr("ERR value is not an integer or out of range", resp.SimpleError)
+
 }

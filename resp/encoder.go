@@ -14,6 +14,28 @@ func bytesToInt(bytes []byte) (int, error) {
 	return strconv.Atoi(string(bytes[:n-2]))
 }
 
+// parse for client
+func ParseClient(reader *bufio.Reader) (Envelope, error) {
+	var env Envelope
+	typeinfo, err := reader.ReadByte()
+
+	if err != nil {
+		return env, err
+	}
+
+	switch typeinfo {
+	case Array:
+		return parseArray(reader)
+	case BulkString:
+		return parseBulkString(reader)
+	case SimpleString:
+		return parseSimpleString(reader)
+	default:
+		fmt.Println("(encoder.ParseClient) undefined case")
+		return env, nil
+	}
+}
+
 //parsing functions
 
 func ParseInput(reader *bufio.Reader) (Envelope, error) {
@@ -25,7 +47,7 @@ func ParseInput(reader *bufio.Reader) (Envelope, error) {
 	}
 
 	if typeinfo != Array {
-		err = fmt.Errorf("The data is not of Redis Array Type, the Type of the data: %v it should be %v", typeinfo, Array)
+		err = fmt.Errorf("(encoder.ParseInput) data is not array: type: %c it should be %c", typeinfo, Array)
 		return env, err
 	}
 
