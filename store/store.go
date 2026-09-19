@@ -6,8 +6,19 @@ import (
 	"time"
 )
 
+type Type string
+
+const (
+	String  = "STR"
+	Integer = "INT"
+	Array   = "ARR"
+	List    = "LST"
+)
+
 type Value struct {
-	val    string
+	kind   Type
+	str    string
+	list   *LinkedList
 	expiry time.Time
 }
 
@@ -24,7 +35,7 @@ func NewStore() *Store {
 
 func (s *Store) set(key string, value string, expiry time.Time) {
 	s.db[key] = &Value{
-		val:    value,
+		str:    value,
 		expiry: expiry,
 	}
 }
@@ -57,25 +68,44 @@ func (s *Store) GET(key string) (string, bool) {
 	if !ok {
 		return "", ok
 	}
-	return valObj.val, ok
+	return valObj.str, ok
 }
 
-func (s *Store) INCR(key string) (string, bool) {
+func (s *Store) INCR(key string) (int, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	valObj, ok := s.get(key)
 	if !ok {
 		s.set(key, "1", time.Time{})
-		return "1", true
+		return 1, true
 	}
 
-	newVal, ok := incrStr(valObj.val)
+	newVal, ok := incrStr(valObj.str)
 	if !ok {
-		return "", ok
+		return 0, ok
 	}
 
-	valObj.val = newVal
+	valObj.str = strconv.Itoa(newVal)
+	return newVal, ok
+}
+
+func (s *Store) DECR(key string) (int, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	valObj, ok := s.get(key)
+	if !ok {
+		s.set(key, "-1", time.Time{})
+		return -1, true
+	}
+
+	newVal, ok := decrStr(valObj.str)
+	if !ok {
+		return 0, ok
+	}
+
+	valObj.str = strconv.Itoa(newVal)
 	return newVal, ok
 }
 
@@ -84,22 +114,28 @@ func (s *Store) INCR(key string) (string, bool) {
 // but the set requires you to set an expiry but we dont have an idea about the expiry
 // so we need to only set the value and not the expiry if possible
 
-// func isExpired(val Value) bool {
-// 	if !(val.expiry.IsZero()) && time.Now().After(val.expiry) {
-// 		return true
-// 	}
-// 	return false
-// }
-
-func incrStr(str string) (string, bool) {
+func incrStr(str string) (int, bool) {
 	if str == "" {
-		return "1", true
+		return 1, true
 	}
 	n, err := strconv.Atoi(str)
 	if err != nil {
-		return "", false
+		return 0, false
 	}
 
-	newVal := strconv.Itoa(n + 1)
-	return newVal, true
+	// newVal := strconv.Itoa(n + 1)
+	return n + 1, true
+}
+
+func decrStr(str string) (int, bool) {
+	if str == "" {
+		return -1, true
+	}
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, false
+	}
+
+	// newVal := strconv.Itoa(n + 1)
+	return n - 1, true
 }

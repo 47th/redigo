@@ -66,6 +66,16 @@ func commandRouter(command resp.Envelope, h *Handler) string {
 		return get(command, h)
 	case "INCR":
 		return incr(command, h)
+	case "DECR":
+		return decr(command, h)
+	case "LPUSH":
+		return lpush(command, h)
+	case "RPUSH":
+		return rpush(command, h)
+	case "LPOP":
+		return lpop(command, h)
+	case "RPOP":
+		return rpop(command, h)
 	default:
 		var args string
 		for i := range command.Size {
@@ -184,16 +194,133 @@ func incr(env resp.Envelope, h *Handler) string {
 	key := env.Array[1].String
 	value, ok := h.store.INCR(key)
 	if ok {
-		str := "(integer) " + value
 		resEnv := resp.Envelope{
-			OpCode: resp.SimpleString,
-			Size:   len(str),
-			String: str,
+			OpCode:  resp.Integer,
+			Integer: value,
 		}
 
 		return resp.FormatMapper(resEnv)
 	}
 
 	return HandleErr("ERR value is not an integer or out of range", resp.SimpleError)
+
+}
+
+func decr(env resp.Envelope, h *Handler) string {
+	if env.Size != 2 {
+		return HandleErr("ERR wrong number of arguments for 'incr' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	value, ok := h.store.DECR(key)
+	if !ok {
+		return HandleErr("ERR value is not an integer or out of range", resp.SimpleError)
+	}
+
+	resEnv := resp.Envelope{
+		OpCode:  resp.Integer,
+		Integer: value,
+	}
+
+	return resp.FormatMapper(resEnv)
+}
+
+func lpush(env resp.Envelope, h *Handler) string {
+	if env.Size < 3 {
+		return HandleErr("ERR wrong number of arguments for 'lpush' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	values := make([]string, env.Size-2)
+
+	for i, e := range env.Array {
+		if i > 1 {
+			values[i-2] = e.String
+		}
+	}
+
+	size, ok := h.store.LPUSH(key, values)
+
+	if !ok {
+		return HandleErr("ERR value is not a list", resp.SimpleError)
+	}
+
+	resEnv := resp.Envelope{
+		OpCode:  resp.Integer,
+		Integer: size,
+	}
+
+	return resp.FormatMapper(resEnv)
+
+}
+
+func rpush(env resp.Envelope, h *Handler) string {
+	if env.Size < 3 {
+		return HandleErr("ERR wrong number of arguments for 'lpush' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	values := make([]string, env.Size-2)
+
+	for i, e := range env.Array {
+		if i > 1 {
+			values[i-2] = e.String
+		}
+	}
+
+	size, ok := h.store.RPUSH(key, values)
+
+	if !ok {
+		return HandleErr("ERR value is not a list", resp.SimpleError)
+	}
+
+	resEnv := resp.Envelope{
+		OpCode:  resp.Integer,
+		Integer: size,
+	}
+
+	return resp.FormatMapper(resEnv)
+
+}
+
+func lpop(env resp.Envelope, h *Handler) string {
+	if env.Size != 2 {
+		return HandleErr("ERR wrong number of arguments for 'incr' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	size, ok := h.store.LPOP(key)
+
+	if !ok {
+		return HandleErr("ERR value is not a list", resp.SimpleError)
+	}
+
+	resEnv := resp.Envelope{
+		OpCode:  resp.Integer,
+		Integer: size,
+	}
+
+	return resp.FormatMapper(resEnv)
+
+}
+
+func rpop(env resp.Envelope, h *Handler) string {
+	if env.Size != 2 {
+		return HandleErr("ERR wrong number of arguments for 'incr' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	size, ok := h.store.RPOP(key)
+
+	if !ok {
+		return HandleErr("ERR value is not a list", resp.SimpleError)
+	}
+
+	resEnv := resp.Envelope{
+		OpCode:  resp.Integer,
+		Integer: size,
+	}
+
+	return resp.FormatMapper(resEnv)
 
 }

@@ -1,0 +1,9 @@
+[
+  {
+    "label": "Go (Delve)",
+    "adapter": "Delve",
+    "request": "launch",
+    "mode": "debug",
+    "program": "./app/"
+  }
+]

@@ -30,6 +30,8 @@ func ParseClient(reader *bufio.Reader) (Envelope, error) {
 		return parseBulkString(reader)
 	case SimpleString:
 		return parseSimpleString(reader)
+	case Integer:
+		return parseInteger(reader)
 	default:
 		fmt.Println("(encoder.ParseClient) undefined case")
 		return env, nil

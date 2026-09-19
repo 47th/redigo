@@ -27,21 +27,21 @@ func NewClient() *Client {
 	return &Client{conn: conn}
 }
 
-func (c *Client) getResponse() string {
+func (c *Client) getResponse() resp.Envelope {
 	reader := bufio.NewReader(c.conn)
 	env, err := resp.ParseClient(reader)
 
 	if err != nil {
 		if err == io.EOF {
 			fmt.Printf("Disconnected by peer: %s \n", err)
-			return ""
+			return resp.Envelope{}
 		}
 
 		fmt.Printf("Error in reading server's response: %s \n", err)
-		return ""
+		return resp.Envelope{}
 	}
 
-	return env.String
+	return env
 }
 
 func (c *Client) SET(key string, value string, expOp string, expiry string) string {
@@ -57,13 +57,25 @@ func (c *Client) SET(key string, value string, expOp string, expiry string) stri
 	}
 	c.conn.Write(payload)
 
-	return c.getResponse()
+	return c.getResponse().String
 }
 
 func (c *Client) GET(key string) string {
 	payload := []byte("*2" + deli + "$3" + deli + "GET" + deli + "$" + strconv.Itoa(len(key)) + deli + key + deli)
 	c.conn.Write(payload)
-	return c.getResponse()
+	return c.getResponse().String
+}
+
+func (c *Client) INCR(key string) int {
+	payload := []byte("*2" + deli + "$4" + deli + "INCR" + deli + "$" + strconv.Itoa(len(key)) + deli + key + deli)
+	c.conn.Write(payload)
+	return c.getResponse().Integer
+}
+
+func (c *Client) DECR(key string) int {
+	payload := []byte("*2" + deli + "$4" + deli + "DECR" + deli + "$" + strconv.Itoa(len(key)) + deli + key + deli)
+	c.conn.Write(payload)
+	return c.getResponse().Integer
 }
 
 // func client() {
@@ -81,31 +93,29 @@ func (c *Client) GET(key string) string {
 //			msg += string(buffer[i])
 //		}
 //	}
-func tempwrite(client *Client) {
-	for range 100 {
-		n, err := strconv.Atoi(client.GET("key"))
-		if err != nil {
-			fmt.Println("There was an error converting counter to integer")
-			return
-		}
+func tempwriteA(client *Client) {
+	for range 100000 {
+		res := client.INCR("key")
+		fmt.Println(res)
+	}
+}
 
-		n = n + 1
-		client.SET("key", strconv.Itoa(n), "", "0")
-		fmt.Println("valuewritten: ", n)
+func tempwriteB(client *Client) {
+	for range 100000 {
+		res := client.DECR("key")
+		fmt.Println(res)
 	}
 }
 
 func main() {
 	clientA := NewClient()
 	clientB := NewClient()
-	res := clientA.SET("key", "0", "", "0")
-	fmt.Println("res", res)
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		tempwrite(clientA)
+		tempwriteA(clientA)
 	})
 	wg.Go(func() {
-		tempwrite(clientB)
+		tempwriteB(clientB)
 	})
 	wg.Wait()
 	fmt.Println("finalvalue: ", clientB.GET("key"))

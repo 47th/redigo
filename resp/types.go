@@ -13,8 +13,9 @@ const (
 	Array        = '*'
 	Bool         = '#'
 	Double       = ','
-	crlf         = "\r\n"
 )
+
+const crlf = "\r\n"
 
 type Envelope struct {
 	OpCode  Type
