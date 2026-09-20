@@ -35,6 +35,7 @@ func NewStore() *Store {
 
 func (s *Store) set(key string, value string, expiry time.Time) {
 	s.db[key] = &Value{
+		kind:   String,
 		str:    value,
 		expiry: expiry,
 	}
@@ -42,7 +43,7 @@ func (s *Store) set(key string, value string, expiry time.Time) {
 
 func (s *Store) get(key string) (*Value, bool) {
 	value, ok := s.db[key]
-	if !ok {
+	if !ok || value.kind != String {
 		return value, ok
 	}
 

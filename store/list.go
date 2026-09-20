@@ -72,6 +72,47 @@ func (ll *LinkedList) lpop() string {
 	return ret
 }
 
+func (ll *LinkedList) lrange(key string, start int, stop int) []string {
+	// case 1 start +ve stop +ve -> if start < size -> iterate till min(stop, size)
+	// case 2 start -ve stop +ve -> find start, start < 0, start becomes 0, if start
+	// case 3 start +ve stop -ve -> normalize the stop,
+	// case 4 start -ve stop -ve ->
+	// combine these to -> if start is -ve, noarmalize it, then change it to 0 if it is still negative, then check if its less than size, then iterate.
+	if start < 0 {
+		start = ll.size + start
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	if stop < 0 {
+		stop = ll.size + stop
+	}
+
+	if stop >= ll.size {
+		stop = ll.size - 1
+	}
+
+	if start >= ll.size || stop < 0 {
+		return []string{}
+	}
+
+	retArr := make([]string, stop-start+1)
+	temp := ll.head
+	for i, ind := 0, 0; i < ll.size; i++ {
+		if i > stop {
+			break
+		}
+		if i >= start {
+			retArr[ind] = temp.val
+			ind++
+		}
+		temp = temp.next
+	}
+
+	return retArr
+}
+
 // exposed functions
 
 func (s *Store) LPUSH(key string, values []string) (int, bool) {
@@ -80,7 +121,7 @@ func (s *Store) LPUSH(key string, values []string) (int, bool) {
 
 	valObj := s.db[key]
 	for _, value := range values {
-		if valObj == nil || valObj.list.size == 0 {
+		if valObj == nil || (valObj.kind == List && valObj.list.size == 0) {
 			valObj = &Value{
 				kind: List,
 				list: NewLinkedList(value),
@@ -102,7 +143,7 @@ func (s *Store) RPUSH(key string, values []string) (int, bool) {
 
 	valObj := s.db[key]
 	for _, value := range values {
-		if valObj == nil || valObj.list.size == 0 {
+		if valObj == nil || (valObj.kind == List && valObj.list.size == 0) {
 			valObj = &Value{
 				kind: List,
 				list: NewLinkedList(value),
@@ -124,7 +165,10 @@ func (s *Store) LPOP(key string) (string, bool) {
 
 	valObj := s.db[key]
 	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
-		return "", false
+		if valObj != nil && valObj.kind != List {
+			return "WRONGTYPE", false
+		}
+		return "NIL", false
 	}
 
 	ret := valObj.list.lpop()
@@ -137,9 +181,29 @@ func (s *Store) RPOP(key string) (string, bool) {
 
 	valObj := s.db[key]
 	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
-		return "", false
+		if valObj != nil && valObj.kind != List {
+			return "WRONGTYPE", false
+		}
+		return "NIL", false
 	}
 
 	ret := valObj.list.rpop()
 	return ret, true
+}
+
+func (s *Store) LRANGE(key string, start int, stop int) ([]string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	valObj := s.db[key]
+	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
+		if valObj != nil && valObj.kind != List {
+			return []string{}, false
+		}
+		return []string{}, true
+	}
+
+	values := valObj.list.lrange(key, start, stop)
+	return values, true
+
 }
