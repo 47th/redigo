@@ -38,12 +38,6 @@ func (ll *LinkedList) rpush(value string) {
 	ll.size++
 }
 
-func (ll *LinkedList) rpop() {
-	ll.tail = ll.tail.prev
-	ll.tail.next = nil
-	ll.size--
-}
-
 func (ll *LinkedList) lpush(value string) {
 	node := &Node{
 		val: value,
@@ -54,10 +48,28 @@ func (ll *LinkedList) lpush(value string) {
 	ll.size++
 }
 
-func (ll *LinkedList) lpop() {
-	ll.head.prev = ll.head
-	ll.head.next = nil
+func (ll *LinkedList) rpop() string {
+	ret := ll.tail.val
+	ll.tail = ll.tail.prev
+	if ll.tail != nil {
+		ll.tail.next = nil
+	} else {
+		ll.head = nil
+	}
 	ll.size--
+	return ret
+}
+
+func (ll *LinkedList) lpop() string {
+	ret := ll.head.val
+	ll.head = ll.head.next
+	if ll.head != nil {
+		ll.head.prev = nil
+	} else {
+		ll.tail = nil
+	}
+	ll.size--
+	return ret
 }
 
 // exposed functions
@@ -68,7 +80,7 @@ func (s *Store) LPUSH(key string, values []string) (int, bool) {
 
 	valObj := s.db[key]
 	for _, value := range values {
-		if valObj == nil {
+		if valObj == nil || valObj.list.size == 0 {
 			valObj = &Value{
 				kind: List,
 				list: NewLinkedList(value),
@@ -90,7 +102,7 @@ func (s *Store) RPUSH(key string, values []string) (int, bool) {
 
 	valObj := s.db[key]
 	for _, value := range values {
-		if valObj == nil {
+		if valObj == nil || valObj.list.size == 0 {
 			valObj = &Value{
 				kind: List,
 				list: NewLinkedList(value),
@@ -106,36 +118,28 @@ func (s *Store) RPUSH(key string, values []string) (int, bool) {
 	return valObj.list.size, true
 }
 
-func (s *Store) LPOP(key string) (int, bool) {
+func (s *Store) LPOP(key string) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	valObj := s.db[key]
-	if valObj == nil || valObj.kind != List {
-		return 0, false
+	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
+		return "", false
 	}
 
-	if valObj.list.size == 0 {
-		return 0, false
-	}
-
-	valObj.list.lpop()
-	return valObj.list.size, true
+	ret := valObj.list.lpop()
+	return ret, true
 }
 
-func (s *Store) RPOP(key string) (int, bool) {
+func (s *Store) RPOP(key string) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	valObj := s.db[key]
-	if valObj == nil || valObj.kind != List {
-		return 0, false
+	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
+		return "", false
 	}
 
-	if valObj.list.size == 0 {
-		return 0, false
-	}
-
-	valObj.list.rpop()
-	return valObj.list.size, true
+	ret := valObj.list.rpop()
+	return ret, true
 }

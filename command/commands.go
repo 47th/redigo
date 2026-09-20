@@ -9,26 +9,13 @@ import (
 	"time"
 )
 
-// type Value struct {
-// 	string    val
-// 	Expiry    time.Time
-// 	ExpirySet bool
-// }
-
 type Handler struct {
 	store *store.Store
-	// router map[string]func(resp.Envelope) string
 }
 
 func NewHandler(store *store.Store) *Handler {
 	return &Handler{
 		store: store,
-		// router: map[string]func(resp.Envelope) string{
-		// 	"PING": ping,
-		// 	"ECHO": echo,
-		// 	"SET":  set,
-		//	"GET":  get,
-		// },
 	}
 }
 
@@ -84,17 +71,6 @@ func commandRouter(command resp.Envelope, h *Handler) string {
 		errStr := "ERR unknown command '" + op.String + "', with args beginning with: " + args
 		return HandleErr(errStr, resp.SimpleError)
 	}
-
-}
-
-func HandleErr(str string, errType resp.Type) string {
-	env := resp.Envelope{
-		OpCode: errType,
-		String: str,
-		Size:   len(str),
-	}
-
-	return resp.FormatMapper(env)
 
 }
 
@@ -163,27 +139,23 @@ func set(env resp.Envelope, h *Handler) string {
 }
 
 func get(env resp.Envelope, h *Handler) string {
-	NIL := resp.Envelope{
-		OpCode: resp.BulkString,
-		Size:   -1,
-	}
-
 	if env.Size != 2 {
 		return HandleErr("ERR wrong number of arguments for 'get' command", resp.SimpleError)
 	}
 	key := env.Array[1].String
 	value, ok := h.store.GET(key)
 
-	if ok {
-		resEnv := resp.Envelope{
-			OpCode: resp.BulkString,
-			Size:   len(value),
-			String: value,
-		}
-		return resp.FormatMapper(resEnv)
+	if !ok {
+		return HandleNIL()
 	}
 
-	return resp.FormatMapper(NIL)
+	resEnv := resp.Envelope{
+		OpCode: resp.BulkString,
+		Size:   len(value),
+		String: value,
+	}
+	return resp.FormatMapper(resEnv)
+
 }
 
 func incr(env resp.Envelope, h *Handler) string {
@@ -223,104 +195,4 @@ func decr(env resp.Envelope, h *Handler) string {
 	}
 
 	return resp.FormatMapper(resEnv)
-}
-
-func lpush(env resp.Envelope, h *Handler) string {
-	if env.Size < 3 {
-		return HandleErr("ERR wrong number of arguments for 'lpush' command", resp.SimpleError)
-	}
-
-	key := env.Array[1].String
-	values := make([]string, env.Size-2)
-
-	for i, e := range env.Array {
-		if i > 1 {
-			values[i-2] = e.String
-		}
-	}
-
-	size, ok := h.store.LPUSH(key, values)
-
-	if !ok {
-		return HandleErr("ERR value is not a list", resp.SimpleError)
-	}
-
-	resEnv := resp.Envelope{
-		OpCode:  resp.Integer,
-		Integer: size,
-	}
-
-	return resp.FormatMapper(resEnv)
-
-}
-
-func rpush(env resp.Envelope, h *Handler) string {
-	if env.Size < 3 {
-		return HandleErr("ERR wrong number of arguments for 'lpush' command", resp.SimpleError)
-	}
-
-	key := env.Array[1].String
-	values := make([]string, env.Size-2)
-
-	for i, e := range env.Array {
-		if i > 1 {
-			values[i-2] = e.String
-		}
-	}
-
-	size, ok := h.store.RPUSH(key, values)
-
-	if !ok {
-		return HandleErr("ERR value is not a list", resp.SimpleError)
-	}
-
-	resEnv := resp.Envelope{
-		OpCode:  resp.Integer,
-		Integer: size,
-	}
-
-	return resp.FormatMapper(resEnv)
-
-}
-
-func lpop(env resp.Envelope, h *Handler) string {
-	if env.Size != 2 {
-		return HandleErr("ERR wrong number of arguments for 'incr' command", resp.SimpleError)
-	}
-
-	key := env.Array[1].String
-	size, ok := h.store.LPOP(key)
-
-	if !ok {
-		return HandleErr("ERR value is not a list", resp.SimpleError)
-	}
-
-	resEnv := resp.Envelope{
-		OpCode:  resp.Integer,
-		Integer: size,
-	}
-
-	return resp.FormatMapper(resEnv)
-
-}
-
-func rpop(env resp.Envelope, h *Handler) string {
-	if env.Size != 2 {
-		return HandleErr("ERR wrong number of arguments for 'incr' command", resp.SimpleError)
-	}
-
-	key := env.Array[1].String
-	size, ok := h.store.RPOP(key)
-
-	if !ok {
-		return HandleErr("ERR value is not a list", resp.SimpleError)
-	}
-
-	resEnv := resp.Envelope{
-		OpCode:  resp.Integer,
-		Integer: size,
-	}
-
-	return resp.FormatMapper(resEnv)
-
 }
