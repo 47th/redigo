@@ -65,6 +65,8 @@ func commandRouter(command resp.Envelope, h *Handler) string {
 		return rpop(command, h)
 	case "LRANGE":
 		return lrange(command, h)
+	case "LLEN":
+		return llen(command, h)
 	default:
 		var args string
 		for i := range command.Size {

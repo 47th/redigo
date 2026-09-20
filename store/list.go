@@ -32,9 +32,14 @@ func (ll *LinkedList) rpush(value string) {
 	node := &Node{
 		val: value,
 	}
-	ll.tail.next = node
-	node.prev = ll.tail
-	ll.tail = node
+	if ll.size == 0 {
+		ll.head = node
+		ll.tail = node
+	} else {
+		ll.tail.next = node
+		node.prev = ll.tail
+		ll.tail = node
+	}
 	ll.size++
 }
 
@@ -42,9 +47,14 @@ func (ll *LinkedList) lpush(value string) {
 	node := &Node{
 		val: value,
 	}
-	ll.head.prev = node
-	node.next = ll.head
-	ll.head = node
+	if ll.size == 0 {
+		ll.head = node
+		ll.tail = node
+	} else {
+		ll.head.prev = node
+		node.next = ll.head
+		ll.head = node
+	}
 	ll.size++
 }
 
@@ -113,6 +123,10 @@ func (ll *LinkedList) lrange(key string, start int, stop int) []string {
 	return retArr
 }
 
+func (ll *LinkedList) llen() int {
+	return ll.size
+}
+
 // exposed functions
 
 func (s *Store) LPUSH(key string, values []string) (int, bool) {
@@ -121,7 +135,7 @@ func (s *Store) LPUSH(key string, values []string) (int, bool) {
 
 	valObj := s.db[key]
 	for _, value := range values {
-		if valObj == nil || (valObj.kind == List && valObj.list.size == 0) {
+		if valObj == nil {
 			valObj = &Value{
 				kind: List,
 				list: NewLinkedList(value),
@@ -143,7 +157,7 @@ func (s *Store) RPUSH(key string, values []string) (int, bool) {
 
 	valObj := s.db[key]
 	for _, value := range values {
-		if valObj == nil || (valObj.kind == List && valObj.list.size == 0) {
+		if valObj == nil {
 			valObj = &Value{
 				kind: List,
 				list: NewLinkedList(value),
@@ -164,10 +178,13 @@ func (s *Store) LPOP(key string) (string, bool) {
 	defer s.mu.Unlock()
 
 	valObj := s.db[key]
-	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
-		if valObj != nil && valObj.kind != List {
-			return "WRONGTYPE", false
-		}
+	if valObj == nil {
+		return "NIL", false
+	}
+	if valObj.kind != List {
+		return "WRONGTYPE", false
+	}
+	if valObj.list.size == 0 {
 		return "NIL", false
 	}
 
@@ -180,10 +197,13 @@ func (s *Store) RPOP(key string) (string, bool) {
 	defer s.mu.Unlock()
 
 	valObj := s.db[key]
-	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
-		if valObj != nil && valObj.kind != List {
-			return "WRONGTYPE", false
-		}
+	if valObj == nil {
+		return "NIL", false
+	}
+	if valObj.kind != List {
+		return "WRONGTYPE", false
+	}
+	if valObj.list.size == 0 {
 		return "NIL", false
 	}
 
@@ -196,14 +216,32 @@ func (s *Store) LRANGE(key string, start int, stop int) ([]string, bool) {
 	defer s.mu.Unlock()
 
 	valObj := s.db[key]
-	if valObj == nil || valObj.kind != List || valObj.list.size == 0 {
-		if valObj != nil && valObj.kind != List {
-			return []string{}, false
-		}
+	if valObj == nil {
+		return []string{}, true
+	}
+	if valObj.kind != List {
+		return []string{}, false
+	}
+	if valObj.list.size == 0 {
 		return []string{}, true
 	}
 
 	values := valObj.list.lrange(key, start, stop)
 	return values, true
+}
 
+func (s *Store) LLEN(key string) (int, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	valObj := s.db[key]
+
+	if valObj == nil {
+		return 0, true
+	}
+	if valObj.kind != List {
+		return 0, false
+	}
+
+	return valObj.list.llen(), true
 }

@@ -150,3 +150,22 @@ func lrange(env resp.Envelope, h *Handler) string {
 
 	return resp.FormatMapper(resEnv)
 }
+
+func llen(env resp.Envelope, h *Handler) string {
+	if env.Size != 2 {
+		return HandleErr("ERR wrong number of arguments for 'rpop' command", resp.SimpleError)
+	}
+
+	key := env.Array[1].String
+	size, ok := h.store.LLEN(key)
+	if !ok {
+		return HandleErr("WRONGTYPE Operation against a key holding the wrong kind of value", resp.SimpleError)
+	}
+
+	resEnv := resp.Envelope{
+		OpCode:  resp.Integer,
+		Integer: size,
+	}
+
+	return resp.FormatMapper(resEnv)
+}
